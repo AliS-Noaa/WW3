@@ -424,7 +424,7 @@
                 FORM='UNFORMATTED',ERR=800,IOSTAT=IERR)
         ELSE
           OPEN (NDSM,FILE=FNMPRE(:J)//'mod_def.'//FILEXT(:I),         &
-                FORM='UNFORMATTED',STATUS='OLD',ERR=800,IOSTAT=IERR)
+     ACTION='READ',FORM='UNFORMATTED',STATUS='OLD',ERR=800,IOSTAT=IERR)
         ENDIF
 !
       REWIND ( NDSM )
