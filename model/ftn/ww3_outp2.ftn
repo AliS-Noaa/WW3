@@ -2604,14 +2604,14 @@
 ! test input parameters ---------------------------------------------- *
 !
       if(TOUT(2) == 0) then
-        WRITE(FILENAME,'("gfswave.out_pnt.points." I0,A,I0,A)') &
-                TOUT(1),'.0',TOUT(2),'0000'
+        WRITE(FILENAME,'(A,"out_pnt.points." I0,A,I0,A)') &
+          trim(prefix),TOUT(1),'.0',TOUT(2),'0000'
       elseif(TOUT(2) .lt. 100000) then
-        WRITE(FILENAME,'("gfswave.out_pnt.points." I0,A,I0)') &
-                TOUT(1),'.0',TOUT(2)
+        WRITE(FILENAME,'(A,"out_pnt.points." I0,A,I0)') &
+          trim(prefix),TOUT(1),'.0',TOUT(2)
       else
-        WRITE(FILENAME,'("gfswave.out_pnt.points." I0,A,I0)') &
-                TOUT(1),'.',TOUT(2)
+        WRITE(FILENAME,'(A,"out_pnt.points." I0,A,I0)') &
+          trim(prefix),TOUT(1),'.',TOUT(2)
       endif
 !
       IGRD = 1
@@ -2689,26 +2689,26 @@
 !
 ! Formats
 !
-  900 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO :'/                &
+  900 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
                '     ILEGAL INXOUT VALUE: ',A/)
-  901 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO :'/                &
+  901 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
                '     MIXED READ/WRITE, LAST REQUEST: ',A/)
-  902 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO :'/                &
+  902 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
                '     ILEGAL IDSTR, READ : ',A/                        &
                '                  CHECK : ',A/)
-  903 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO :'/                &
+  903 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
                '     ILEGAL VEROPT, READ : ',A/                       &
                '                   CHECK : ',A/)
-  904 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO :'/                &
+  904 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
                '     ERROR IN SPECTRA, MK, MTH : ',2I8/               &
                '              ARRAY DIMENSIONS : ',2I8/)
 !
- 1000 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO : '/               &
+ 1000 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 : '/              &
                '     ERROR IN OPENING FILE'/                          &
                '     IOSTAT =',I5/)
- 1001 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO : '/               &
+ 1001 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 : '/              &
                '     PREMATURE END OF FILE'/)
- 1002 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO : '/               &
+ 1002 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 : '/              &
                '     ERROR IN READING FROM FILE'/                     &
                '     IOSTAT =',I5/)
 !
