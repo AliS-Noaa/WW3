@@ -124,7 +124,7 @@
   reg_programs="$reg_programs ww3_shel"
   reg_programs="$reg_programs ww3_outf"
   reg_programs="$reg_programs ww3_outp"
-  reg_programs="$reg_programs ww3_outp2"
+#  reg_programs="$reg_programs ww3_outp2"
   reg_programs="$reg_programs ww3_trck"
   reg_programs="$reg_programs ww3_grib"
   reg_programs="$reg_programs ww3_gspl"
