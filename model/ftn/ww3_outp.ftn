@@ -235,8 +235,8 @@
         call get_command_argument(1,prefix)
         prefix=trim(prefix)//'.'
       else
-        print*,'ww3_outp: Argument count not recognized.'
-        print*,'ww3_outp: Assuming first arg is experiment prefix.'
+        write(*, *) 'ww3_outp: Argument count not recognized.'
+        write(*, *) 'ww3_outp: Assuming first arg is experiment prefix.'
         call get_command_argument(1,prefix)
         prefix=trim(prefix)//'.'
       endif
@@ -306,21 +306,7 @@
       XPART  = UNDEF
 !
 !--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-! 3.  Read general data and first fields from file
-!
-!      CALL W3IOPO ( 'READ', NDSOP, IOTEST )
-!!
-!      WRITE (NDSO,930)
-!      DO I=1, NOPTS
-!        IF ( FLAGLL ) THEN
-!            WRITE (NDSO,931) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
-!          ELSE
-!            WRITE (NDSO,932) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
-!          END IF
-!        END DO
-!
-!--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-! 4.  Read requests from input file.
+! 3.  Read requests from input file.
 !     Output times
 !
       CALL NEXTLN ( COMSTR , NDSI , NDSE )
@@ -690,7 +676,7 @@
       IF ( ITYPE.EQ.3 .AND. OTYPE.EQ.4 ) WRITE (NDSO,952)
 !
 !--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-! 5.  Time management.
+! 4.  Time management.
      
       PROCESS_POINT_ONLY = .FALSE.
       ACTIVE_POINT = -1

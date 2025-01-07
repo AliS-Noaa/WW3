@@ -136,6 +136,7 @@
     reg_programs="$reg_programs ww3_prtide"
   fi
 
+# cdf_programs = NetCDF programs
   cdf_programs="ww3_prnc"
   cdf_programs="$cdf_programs ww3_ounf"
   cdf_programs="$cdf_programs ww3_ounp"
@@ -160,8 +161,10 @@
     reg_programs="$reg_programs ww3_sbs1"
   fi
 
+# all_programs = all possible programs
   all_programs="$reg_programs $cdf_programs"
 
+# progs = programs requested to compile
   if [ $default_mode -eq 1 ]
   then
     progs="$all_programs"
