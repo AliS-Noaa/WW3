@@ -235,8 +235,8 @@
         call get_command_argument(1,prefix)
         prefix=trim(prefix)//'.'
       else
-        write(*, *) 'ww3_outp: Argument count not recognized.'
-        write(*, *) 'ww3_outp: Assuming first arg is experiment prefix.'
+        WRITE(NDSO, '(A)') 'ww3_outp: Argument count not recognized.'
+        WRITE(NDSO, '(A)') 'ww3_outp: Assuming first arg is experiment prefix.'
         call get_command_argument(1,prefix)
         prefix=trim(prefix)//'.'
       endif
@@ -1139,7 +1139,7 @@
 !/
       USE W3ARRYMD, ONLY: PRT1DS, PRT2DS, PRT1DM
       USE W3DISPMD, ONLY: NAR1D, DFAC, N1MAX, ECG1, EWN1, DSIE
-      !USE W3BULLMD, ONLY: W3BULL
+      USE W3BULLMD, ONLY: W3BULL
 !/
 !/ ------------------------------------------------------------------- /
 !/ Local parameters

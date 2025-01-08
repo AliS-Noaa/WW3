@@ -176,7 +176,6 @@ gout:
 	$(WW3_BINDIR)/w3_make ww3_grid
 	$(WW3_BINDIR)/w3_make ww3_outf
 	$(WW3_BINDIR)/w3_make ww3_outp
-	#$(WW3_BINDIR)/w3_make ww3_outp2
 	$(WW3_BINDIR)/w3_make ww3_prep
 	$(WW3_BINDIR)/w3_make ww3_gint
 	$(WW3_BINDIR)/w3_make ww3_prnc
