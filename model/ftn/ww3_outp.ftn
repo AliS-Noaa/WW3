@@ -283,8 +283,7 @@
       WRITE (NDSO,900)
 !
       J      = LEN_TRIM(FNMPRE)
-      OPEN (NDSI,FILE=FNMPRE(:J)//'ww3_outp.inp',STATUS='OLD',        &
-            ACTION='READ',ERR=800,IOSTAT=IERR)
+      OPEN (NDSI,FILE=FNMPRE(:J)//'ww3_outp.inp',STATUS='OLD',ERR=800,IOSTAT=IERR)
       READ (NDSI,'(A)',END=801,ERR=802) COMSTR
       IF (COMSTR.EQ.' ') COMSTR = '$'
       WRITE (NDSO,901) COMSTR
@@ -2646,7 +2645,7 @@
 !
 ! open file ---------------------------------------------------------- *
 !
-      OPEN (NDSOP,FILE=trim(FILENAME), ACTION='READ',FORM='UNFORMATTED'&
+      OPEN (NDSOP,FILE=trim(FILENAME),FORM='UNFORMATTED'&
             ,ERR=800,IOSTAT=IERR,STATUS='OLD')
 !
       REWIND ( NDSOP )

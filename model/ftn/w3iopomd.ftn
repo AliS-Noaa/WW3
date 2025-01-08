@@ -1015,7 +1015,7 @@
                     FORM='UNFORMATTED',ERR=800,IOSTAT=IERR)
             ELSE
               OPEN (NDSOP,FILE=FNMPRE(:J)//'out_pnt.'//FILEXT(:I),    &
-     ACTION='READ',FORM='UNFORMATTED',ERR=800,IOSTAT=IERR,STATUS='OLD')
+     FORM='UNFORMATTED',ERR=800,IOSTAT=IERR,STATUS='OLD')
             END IF
 !
           REWIND ( NDSOP )
