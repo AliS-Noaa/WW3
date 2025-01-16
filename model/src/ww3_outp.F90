@@ -1,34 +1,34 @@
-!> @file
-!> @brief Post-processing of point output.
+!> @@file
+!> @@brief Post-processing of point output.
 !>
-!> @author H. L. Tolman
-!> @author J.H. Alves
-!> @author A. Chawla
-!> @author F. Ardhuin
-!> @author E. Rogers
-!> @author T. Campbell
-!> @date   27-Aug-2015
+!> @@author H. L. Tolman
+!> @@author J.H. Alves
+!> @@author A. Chawla
+!> @@author F. Ardhuin
+!> @@author E. Rogers
+!> @@author T. Campbell
+!> @@date   27-Aug-2015
 !>
 
 #include "w3macros.h"
 !/ ------------------------------------------------------------------- /
 
 !>
-!> @brief Post-processing of point output.
+!> @@brief Post-processing of point output.
 !>
-!> @details Data is read from the grid output file out_pnt.ww3 (raw data)
+!> @@details Data is read from the grid output file out_pnt.ww3 (raw data)
 !>  and from the file ww3_outp.inp ( NDSI, output requests ). Model
 !>  definition and raw data files are read using WAVEWATCH III subroutines.
 !>
-!> @author H. L. Tolman
-!> @author J.H. Alves
-!> @author A. Chawla
-!> @author F. Ardhuin
-!> @author E. Rogers
-!> @author T. Campbell
-!> @date   27-Aug-2015
+!> @@author H. L. Tolman
+!> @@author J.H. Alves
+!> @@author A. Chawla
+!> @@author F. Ardhuin
+!> @@author E. Rogers
+!> @@author T. Campbell
+!> @@date   27-Aug-2015
 !>
-!> @copyright Copyright 2009-2022 National Weather Service (NWS),
+!> @@copyright Copyright 2009-2022 National Weather Service (NWS),
 !>       National Oceanic and Atmospheric Administration.  All rights
 !>       reserved.  WAVEWATCH III is a trademark of the NWS.
 !>       No unauthorized use without permission.
@@ -269,6 +269,10 @@ PROGRAM W3OUTP
        TABNME*9, TFNAME*16
   CHARACTER(LEN=25)       :: IDSRCE(7)
   CHARACTER               :: HSTR*6, HTYPE*3
+  INTEGER :: NDSDBG
+  CHARACTER(LEN=256) :: DEBUG_FILENAME, FILENAME
+  CHARACTER(LEN=8) :: DATE_NC
+  CHARACTER(LEN=6) :: TIME_NC
   !/
   !/ ------------------------------------------------------------------- /
   !/
@@ -362,20 +366,7 @@ PROGRAM W3OUTP
   !--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   ! 3.  Read general data and first fields from file
   !
-#if W3_BIN2NC
-  CALL W3IOPON ( 'READ', NDSOP, IOTEST )
-#else
-  CALL W3IOPO ( 'READ', NDSOP, IOTEST )
-#endif
-  !
-  WRITE (NDSO,930)
-  DO I=1, NOPTS
-    IF ( FLAGLL ) THEN
-      WRITE (NDSO,931) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
-    ELSE
-      WRITE (NDSO,932) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
-    END IF
-  END DO
+
   !
   !--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   ! 4.  Read requests from input file.
@@ -401,6 +392,48 @@ PROGRAM W3OUTP
   IDTIME(1:11) = IDDDAY
   IDTIME(21:23) = '   '
   WRITE (NDSO,941) IDTIME, NOUT
+
+  ! 3.  Read general data and first fields from file
+  !
+
+    ! Initialize the debug file
+  DEBUG_FILENAME = 'debug_outp.txt'
+  OPEN (NDSDBG, FILE=DEBUG_FILENAME, STATUS='NEW', IOSTAT=IERR)
+  IF (IERR .NE. 0) THEN
+    PRINT *, 'Error opening debug file.'
+    STOP
+  ENDIF
+
+#if W3_BIN2NC
+            ! Construct the file name based on the current TOUT value
+  CALL STME21(TOUT, IDTIME)
+          ! Extract YYYYMMDD and HHMMSS from IDTIME
+  DATE_NC = IDTIME(1:4) // IDTIME(6:7) // IDTIME(9:10)
+  TIME_NC = IDTIME(12:13) // IDTIME(15:16) // IDTIME(18:19)
+
+      ! Construct the filename
+  FILENAME = TRIM(FNMPRE(:J)) // DATE_NC // '.' // TIME_NC // '.out_pnt.ww3.nc'
+
+      ! Write the filename to the debug file
+  WRITE(NDSDBG, *) 'Reading file:', FILENAME
+      ! Close any previously open file
+  CLOSE(NDSOP, IOSTAT=IERR)
+    ! Open the appropriate NetCDF file for the current time step
+  OPEN (UNIT=NDSOP, FILE=FILENAME, STATUS='OLD', IOSTAT=IERR)
+
+  CALL W3IOPON ( 'READ', NDSOP, IOTEST )
+#else
+  CALL W3IOPO ( 'READ', NDSOP, IOTEST )
+#endif
+  !
+  WRITE (NDSO,930)
+  DO I=1, NOPTS
+    IF ( FLAGLL ) THEN
+      WRITE (NDSO,931) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
+    ELSE
+      WRITE (NDSO,932) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
+    END IF
+  END DO
   !
   ! ... Output points
   !
@@ -465,7 +498,27 @@ PROGRAM W3OUTP
       CALL STME21 ( TIME , IDTIME )
       WRITE (NDSO,948) IDTIME
 #ifdef W3_BIN2NC
+            ! Construct the file name based on the current TOUT value
+      CALL STME21(TOUT, IDTIME)
+          ! Extract YYYYMMDD and HHMMSS from IDTIME
+      DATE_NC = IDTIME(1:4) // IDTIME(6:7) // IDTIME(9:10)
+      TIME_NC = IDTIME(12:13) // IDTIME(15:16) // IDTIME(18:19)
+
+      ! Construct the filename
+      FILENAME = TRIM(FNMPRE(:J)) // DATE_NC // '.' // TIME_NC // '.out_pnt.ww3.nc'
+
+      ! Write the filename to the debug file
+      WRITE(NDSDBG, *) 'Reading file:', FILENAME
+
+          ! Close any previously open file
+      CLOSE(NDSOP, IOSTAT=IERR)
+    ! Open the appropriate NetCDF file for the current time step
+      OPEN (UNIT=NDSOP, FILE=FILENAME, STATUS='OLD', IOSTAT=IERR)
+
       CALL W3IOPON ( 'READ', NDSOP, IOTEST )
+      IF (IERR /= 0) THEN
+        PRINT *, 'Error opening file in stage 3: ', FILENAME
+      END IF
 #else
       CALL W3IOPO ( 'READ', NDSOP, IOTEST )
 #endif
@@ -785,10 +838,36 @@ PROGRAM W3OUTP
   WRITE(NDSO,3961)
 #endif
 
+  ! Initialize the debug file
+  DEBUG_FILENAME = 'debug_outp.txt'
+  OPEN (NDSDBG, FILE=DEBUG_FILENAME, STATUS='NEW', IOSTAT=IERR)
+  IF (IERR .NE. 0) THEN
+    PRINT *, 'Error opening debug file.'
+    STOP
+  ENDIF
+
   DO
     DTEST  = DSEC21 ( TIME , TOUT )
     IF ( DTEST .GT. 0. ) THEN
 #ifdef W3_BIN2NC
+            ! Construct the file name based on the current TOUT value
+      CALL STME21(TOUT, IDTIME)
+          ! Extract YYYYMMDD and HHMMSS from IDTIME
+      DATE_NC = IDTIME(1:4) // IDTIME(6:7) // IDTIME(9:10)
+      TIME_NC = IDTIME(12:13) // IDTIME(15:16) // IDTIME(18:19)
+
+      ! Construct the filename
+      FILENAME = TRIM(FNMPRE(:J)) // DATE_NC // '.' // TIME_NC // '.out_pnt.ww3.nc'
+
+      ! Write the filename to the debug file
+      WRITE(NDSDBG, *) 'Reading file:', FILENAME
+    ! Open the appropriate NetCDF file for the current time step
+      OPEN (UNIT=NDSOP, FILE=FILENAME, STATUS='OLD', IOSTAT=IERR)
+      IF (IERR /= 0) THEN
+        WRITE(*,*) 'Error opening file:', FILENAME
+        EXIT
+      END IF
+      ! Open the appropriate NetCDF file for the current time step
       CALL W3IOPON ( 'READ', NDSOP, IOTEST )
 #else 
       CALL W3IOPO ( 'READ', NDSOP, IOTEST )
@@ -813,6 +892,8 @@ PROGRAM W3OUTP
     CALL TICK21 ( TOUT , DTREQ )
     IF ( IOUT .GE. NOUT ) EXIT
   END DO
+    ! Close the debug file
+  CLOSE (NDSDBG)
   !
   ! ... ITYPE=4 & OTYPES=[2,4] requires adding lines at bottom of
   !     bulletin output for compatibility with version 2.22
@@ -1033,13 +1114,13 @@ CONTAINS
   !/ ------------------------------------------------------------------- /
 
 !>
-!> @brief Perform actual point output.
+!> @@brief Perform actual point output.
 !>
-!> @author H. L. Tolman
-!> @author J. H. Alves
-!> @author F. Ardhuin
-!> @author A. Chawla
-!> @date   06-Feb-2014
+!> @@author H. L. Tolman
+!> @@author J. H. Alves
+!> @@author F. Ardhuin
+!> @@author A. Chawla
+!> @@date   06-Feb-2014
 !>
   SUBROUTINE W3EXPO
     !/
@@ -2865,3 +2946,4 @@ CONTAINS
   !/ End of W3OUTP ----------------------------------------------------- /
   !/
 END PROGRAM W3OUTP
+@
