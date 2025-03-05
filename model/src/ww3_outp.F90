@@ -427,8 +427,15 @@ PROGRAM W3OUTP
       END IF
     END DO
 #else
-    WRITE (NDSE,1013) dynpnt
-    CALL EXTCDE ( 45 )
+    CALL W3IOPO_dynm ( NDSOP, TOUT, IOTEST )
+    WRITE (NDSO,930)
+    DO I=1, NOPTS
+      IF ( FLAGLL ) THEN
+        WRITE (NDSO,931) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
+      ELSE
+        WRITE (NDSO,932) PTNME(I), M2KM*PTLOC(1,I), M2KM*PTLOC(2,I)
+      END IF
+    END DO
 #endif
   END IF
   !
@@ -909,8 +916,12 @@ PROGRAM W3OUTP
       ELSE
         CALL W3IOPON ( 'READ', NDSOP, IOTEST )
       END IF
-#else 
-      CALL W3IOPO ( 'READ', NDSOP, IOTEST )
+#else       
+      IF (dynpnt .EQ. 1) THEN
+        CALL  W3IOPO_dynm ( NDSOP, TOUT, IOTEST )
+      ELSE
+        CALL W3IOPO ( 'READ', NDSOP, IOTEST )
+      END IF
 #endif
       IF ( IOTEST .EQ. -1 ) THEN
         WRITE (NDSO,949)
@@ -3031,6 +3042,276 @@ CONTAINS
     !/ End of W3EXPO ----------------------------------------------------- /
     !/
   END SUBROUTINE W3EXPO
+!/
+  SUBROUTINE W3IOPO_dynm ( NDSOP, TOUT, IOTST)
+!/
+!/                  +-----------------------------------+
+!/                  | WAVEWATCH III           NOAA/NCEP |
+!/                  |           H. L. Tolman            |
+!/                  |                        FORTRAN 90 |
+!/                  | Last update :         25-Jul-2006 |
+!/                  +-----------------------------------+
+!/
+!/    07-Jan-1999 : Distributed FORTRAN 77 version.     ( version 1.18 )
+!/    30-Dec-1999 : Upgrade to FORTRAN 90               ( version 2.00 )
+!/                  Major changes to logistics.
+!/    10-Nov-2004 : Multiple grid version.              ( version 3.06 )
+!/    27-Jun-2006 : Adding file name preamble.          ( version 3.09 )
+!/    25-Jul-2006 : Adding grid ID per point.           ( version 3.10 )
+!/    27-Aug-2015 : Adding interpolation for the ice.   ( version 5.10 )
+!/
+!  1. Purpose :
+!
+!     Read/write point output.
+!
+!  3. Parameters :
+!
+!     Parameter list
+!     ----------------------------------------------------------------
+!       VEROPT  C*10  Private  Point output file version number.
+!       IDSTR   C*32  Private  Point output file ID string.
+!       INXOUT  C*(*)  I   Test string for read/write, valid are:
+!                          'READ' and 'WRITE'.
+!       NDSOP   Int.   I   File unit number.
+!       IOTST   Int.   O   Test indictor for reading.
+!                           0 : Data read.
+!                          -1 : Past end of file.
+!       IMOD    I(O)   I   Model number for W3GDAT etc.
+!     ----------------------------------------------------------------
+!
+!  4. Subroutines used :
+!
+!     See module documentation.
+!
+!  5. Called by :
+!
+!      Name      Type  Module   Description
+!     ----------------------------------------------------------------
+!      W3WAVE    Subr. W3WAVEMD Actual wave model routine.
+!      WW3_OUTP  Prog.   N/A    Postprocessing for point output.
+!      GX_OUTP   Prog.   N/A    Grads postprocessing for point output.
+!     ----------------------------------------------------------------
+!
+!  6. Error messages :
+!
+!       Tests on INXOUT, file status and on array dimensions.
+!
+!  7. Remarks :
+!
+!     - The output file has the pre-defined name 'out_pnt.FILEXT'.
+!     - In MPP version of model data is supposed to be gatherd at the
+!       correct processor before the routine is called.
+!     - No error output filtering needed.
+!
+!  8. Structure :
+!
+!     See source code.
+!
+!  9. Switches :
+!
+!     !/SHRD  Switch for shared / distributed memory architecture.
+!     !/DIST  Id.
+!
+!     !/S     Enable subroutine tracing.
+!     !/T     Test output.
+!
+! 10. Source code :
+!
+!/ ------------------------------------------------------------------- /
+      USE W3GDATMD, ONLY: W3SETG
+      USE W3WDATMD, ONLY: W3SETW
+      USE W3ODATMD, ONLY: W3SETO, W3DMO2
+!/
+      USE W3GDATMD, ONLY: NTH, NK, NSPEC, FILEXT
+      USE W3WDATMD, ONLY: TIME
+      USE W3ODATMD, ONLY: NDST, NDSE, IPASS => IPASS2, NOPTS, IPTINT, &
+                          IL, IW, II, PTLOC, PTIFAC, DPO, WAO, WDO,   &
+                          ASO, CAO, CDO, SPCO, PTNME, O2INIT, FNMPRE, &
+                          GRDID, ICEO, ICEHO, ICEFO
+      USE W3ODATMD, ONLY :  OFILES
+#ifdef W3_FLX5
+      USE W3ODATMD, ONLY: TAUAO, TAUDO, DAIRO
+#endif
+      USE W3ODATMD, ONLY :  OFILES
+    !/
+#ifdef W3_SETUP
+      USE W3ODATMD, ONLY: ZET_SETO
+#endif
+    !/
+      USE W3SERVMD, ONLY: EXTCDE
+#ifdef W3_S
+      USE W3SERVMD, ONLY: STRACE
+#endif
+      USE W3SERVMD, ONLY: EXTCDE
+      use constants, only: file_endian
+
+      IMPLICIT NONE
+!/
+!/ Private parameter statements (ID strings)
+!/
+      CHARACTER(LEN=10), PARAMETER :: VEROPT = '2021-04-06'
+      CHARACTER(LEN=31), PARAMETER ::                        &
+                           IDSTR = 'WAVEWATCH III POINT OUTPUT FILE'
+!/
+!/ ------------------------------------------------------------------- /
+!/ Parameter list
+!/
+      INTEGER, INTENT(IN)           :: NDSOP
+#ifdef W3_ASCII
+      INTEGER, INTENT(IN), OPTIONAL :: NDSOA
+#endif
+      INTEGER, INTENT(IN)           :: TOUT(2)
+      INTEGER, INTENT(OUT)          :: IOTST
+!/
+!/ ------------------------------------------------------------------- /
+!/ local parameters
+!/
+      INTEGER                 :: IGRD, IERR, MK, MTH, I, J
+!/S      INTEGER, SAVE           :: IENT = 0
+      LOGICAL,SAVE            :: WRITE
+      CHARACTER(LEN=31)       :: IDTST
+      CHARACTER(LEN=10)       :: VERTST
+!/
+      CHARACTER(LEN=15) :: TIMETAG
+      CHARACTER(LEN=120) :: FILENAME
+!/
+!/ ------------------------------------------------------------------- /
+!/
+!/S      CALL STRACE (IENT, 'W3IOPO')
+      IOTST  = 0
+!
+! test input parameters ---------------------------------------------- *
+!
+      WRITE(TIMETAG, '(I8.8, ".", I6.6)') TOUT(1), TOUT(2)
+      FILENAME = TRIM(TIMETAG) // '.out_pnt.' // TRIM(FILEXT)
+      WRITE(*,*) 'filename:',FILENAME
+!
+      IGRD = 1
+      CALL W3SETO ( IGRD, NDSE, NDST )
+      CALL W3SETG ( IGRD, NDSE, NDST )
+      CALL W3SETW ( IGRD, NDSE, NDST )
+!
+! open file ---------------------------------------------------------- *
+!
+!      OPEN (NDSOP,FILE=trim(FILENAME),FORM='UNFORMATTED'&
+!            ,ERR=800,IOSTAT=IERR,STATUS='OLD')
+      OPEN (NDSOP,FILE=trim(FILENAME),    &
+           form='UNFORMATTED', convert=file_endian,ERR=800,IOSTAT=IERR,STATUS='OLD')
+!
+      REWIND ( NDSOP )
+!
+      READ (NDSOP,END=801,ERR=802,IOSTAT=IERR) IDTST, VERTST, MK, &
+            MTH, NOPTS
+      WRITE(*,*) '(IDTST, VERTST, VEROPT, MK, MTH, NK, NTH, NOPTS): ', &
+                         IDTST, VERTST, VEROPT, MK, MTH, NK, NTH, NOPTS
+!
+      IF ( IDTST .NE. IDSTR ) THEN
+        WRITE (NDSE,902) IDTST, IDSTR
+        CALL EXTCDE ( 10 )
+      END IF
+      IF ( VERTST .NE. VEROPT ) THEN
+        WRITE (NDSE,903) VERTST, VEROPT
+        CALL EXTCDE ( 11 )
+      END IF
+      IF (NK.NE.MK .OR. NTH.NE.MTH) THEN
+        WRITE (NDSE,904) MK, MTH, NK, NTH
+        CALL EXTCDE ( 12 )
+      END IF
+      IF ( .NOT. O2INIT ) CALL W3DMO2 ( IGRD, NDSE, NDST, NOPTS )
+!
+      READ  (NDSOP,END=801,ERR=802,IOSTAT=IERR)               &
+                    ((PTLOC(J,I),J=1,2),I=1,NOPTS), (PTNME(I),I=1,NOPTS)
+!
+! TIME --------------------------------------------------------------- *
+!
+      READ (NDSOP,END=803,ERR=802,IOSTAT=IERR) TIME
+!
+!/T      WRITE (NDST,9010) TIME
+!
+!
+! Loop over spectra -------------------------------------------------- *
+!
+      DO I=1, NOPTS
+!
+        READ (NDSOP,END=801,ERR=802,IOSTAT=IERR)                 &
+              IW(I), II(I), IL(I), DPO(I), WAO(I), WDO(I),      &
+!/SETUP       ZET_SETO(I),                                      &
+              ASO(I), CAO(I), CDO(I), ICEO(I), ICEHO(I),        &
+              ICEFO(I), GRDID(I), (SPCO(J,I),J=1,NSPEC)
+!
+      END DO
+      CLOSE (NDSOP)
+!
+      RETURN
+!
+! Escape locations read errors
+!
+  800 CONTINUE
+      WRITE (NDSE,1000) IERR
+      CALL EXTCDE ( 20 )
+!
+  801 CONTINUE
+      WRITE (NDSE,1001)
+      CALL EXTCDE ( 21 )
+!
+  802 CONTINUE
+      WRITE (NDSE,1002) IERR
+      CALL EXTCDE ( 22 )
+!
+  803 CONTINUE
+      IOTST  = -1
+!/T      WRITE (NDST,9011)
+      RETURN
+!
+! Formats
+!
+  900 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
+               '     ILEGAL INXOUT VALUE: ',A/)
+  901 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
+               '     MIXED READ/WRITE, LAST REQUEST: ',A/)
+  902 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
+               '     ILEGAL IDSTR, READ : ',A/                        &
+               '                  CHECK : ',A/)
+  903 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
+               '     ILEGAL VEROPT, READ : ',A/                       &
+               '                   CHECK : ',A/)
+  904 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 :'/               &
+               '     ERROR IN SPECTRA, MK, MTH : ',2I8/               &
+               '              ARRAY DIMENSIONS : ',2I8/)
+!
+ 1000 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 : '/              &
+               '     ERROR IN OPENING FILE'/                          &
+               '     IOSTAT =',I5/)
+ 1001 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 : '/              &
+               '     PREMATURE END OF FILE'/)
+ 1002 FORMAT (/' *** WAVEWATCH III ERROR IN W3IOPO2 : '/              &
+               '     ERROR IN READING FROM FILE'/                     &
+               '     IOSTAT =',I5/)
+!
+!/T 9000 FORMAT (' TEST W3IOPO : IPASS =',I4,'    INXOUT = ',A,       &
+!/T              ' WRITE = ',L1,' UNIT =',I3/                         &
+!/T              '               IGRD =',I3,' FEXT = ',A)
+
+!/T 9001 FORMAT (' TEST W3IOPO : OPENING NEW FILE [',A,']')
+!/T 9002 FORMAT (' TEST W3IOPO : TEST PARAMETERS:'/                   &
+!/T              '       IDSTR : ',A/                                 &
+!/T              '      VEROPT : ',A/                                 &
+!/T              '      NK,NTH :',I5,I8/                              &
+!/T              '        NOPT :',I5)
+!/T 9003 FORMAT (' TEST W3IOPO : POINT LOCATION AND ID')
+!/T 9004 FORMAT (3X,I4,2F10.2,2X,A)
+!
+!/T 9010 FORMAT (' TEST W3IOPO : TIME  :',I9.8,I7.6)
+!/T 9011 FORMAT (' TEST W3IOPO : END OF FILE REACHED')
+!
+!/T 9020 FORMAT (' TEST W3IOPO : POINT NR.:',I5)
+!/T 9021 FORMAT (' TEST W3IOPO :',2I4,2F6.3)
+!/T 9022 FORMAT (' TEST W3IOPO :',4I7,2X,4I2,2X,4F5.2)
+!/T 9030 FORMAT (' TEST W3IOPO :',F8.1,2(F7.2,F7.1))
+!/
+!/ End of W3IOPO ----------------------------------------------------- /
+!/
+      END SUBROUTINE W3IOPO_dynm
   !/
   !/ End of W3OUTP ----------------------------------------------------- /
   !/
