@@ -465,27 +465,23 @@ CONTAINS
     !
     ! open file ---------------------------------------------------------- *
     !
-    if (present(filename)) then ! only when restart_nc and restart_from_binary=true
-      open (ndsr,file=trim(filename),form='unformatted', convert=file_endian, &
-           access='stream',err=800,iostat=ierr, status='old',action='read')
-    else
-      IF (LEN_TRIM(FNMRST) .EQ. 0) THEN
-        FNMPRE_LOCAL = FNMPRE
-      ELSE 
-        FNMPRE_LOCAL = FNMRST
-      ENDIF 
-      
-      I      = LEN_TRIM(FILEXT)
-      J      = LEN_TRIM(FNMPRE_LOCAL)
-      !
-      !CHECKPOINT RESTART FILE
-      ITMP=0
-      IF ( PRESENT(FLRSTRT) ) THEN
-        IF (FLRSTRT) THEN
-          WRITE(TIMETAG,"(i8.8,'.'i6.6)")TIME(1),TIME(2)
-          FNAME=TIMETAG//'.restart.'//FILEXT(:I)
-          ITMP=1
-        END IF
+    IF (LEN_TRIM(FNMRST) .EQ. 0) THEN
+      FNMPRE_LOCAL = FNMPRE
+    ELSE
+      FNMPRE_LOCAL = FNMRST
+    END IF
+    !
+
+    I      = LEN_TRIM(FILEXT)
+    J      = LEN_TRIM(FNMPRE_LOCAL)
+    !
+    !CHECKPOINT RESTART FILE
+    ITMP=0
+    IF ( PRESENT(FLRSTRT) ) THEN
+      IF (FLRSTRT) THEN
+        WRITE(TIMETAG,"(i8.8,'.'i6.6)")TIME(1),TIME(2)
+        FNAME=TIMETAG//'.restart.'//FILEXT(:I)
+        ITMP=1
       END IF
       IF(ITMP.NE.1)THEN ! FNAME is not set above, so do it here
         IF ( IFILE.EQ.0 ) THEN
