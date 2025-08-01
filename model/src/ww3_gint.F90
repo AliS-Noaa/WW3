@@ -3544,7 +3544,18 @@ CONTAINS
       WXN=0.
       WYN=0.
 #endif 
-      CALL W3IORS ( 'HOT', 55, XXX, NG) 
+      !CALL W3IORS ( 'HOT', 55, XXX, NG) 
+      ALLOCATE(VA_tmp(NK*NTH, NX*NY))
+      ALLOCATE(ICE_tmp(NX*NY))
+      VA_tmp = VA
+      ICE_tmp = ICE
+      
+      CALL W3IORSN_WRITE(TOUT, ios, VA_tmp, ICE_tmp, MAPSTA, NX, NY, NK, NTH)
+      IF (ios /= 0) THEN
+        PRINT *, 'W3IORSN_WRITE failed with error = ', ios
+        CALL ABORT
+      END IF
+
     END IF 
     !
     RETURN

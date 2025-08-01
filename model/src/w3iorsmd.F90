@@ -1588,6 +1588,165 @@ CONTAINS
     !/ End of W3IORS ----------------------------------------------------- /
     !/
   END SUBROUTINE W3IORS
+
+  SUBROUTINE W3IORSN_WRITE(TOUT, ios, VA_tmp, ICE_tmp, MAPSTA, NX, NY, NK, NTH)
+    USE netcdf
+    USE W3WDATMD, ONLY: TIME
+    USE W3TIMEMD, ONLY: CALTYPE, T2D, U2D, TSUB
+
+    IMPLICIT NONE
+
+    ! Input/output arguments
+    INTEGER, INTENT(IN)            :: TOUT(2), NX, NY, NK, NTH
+    INTEGER, INTENT(OUT)           :: ios
+    REAL,    INTENT(IN)            :: VA_tmp(:,:), ICE_tmp(:)
+    INTEGER, INTENT(IN)            :: MAPSTA(NY, NX)
+
+    ! Internal variables
+    CHARACTER(LEN=128)             :: filename
+    CHARACTER(LEN=8)               :: vname
+    INTEGER                        :: ncid, dim_nx, dim_ny, dim_time
+    INTEGER                        :: var_nk, var_nth, var_time
+    INTEGER                        :: varid_mapsta, varid_ice
+    INTEGER                        :: dims_3d(3)
+    INTEGER                        :: ix, iy, ip, nv, varid, status
+    REAL(8)                        :: time_val_arr(1)
+    REAL, PARAMETER                :: fillval_r = 9.96921e+36
+    INTEGER, PARAMETER             :: fillval_i = -2147483647
+    REAL, ALLOCATABLE              :: tmp3d(:,:,:)
+    INTEGER, ALLOCATABLE           :: tmp3d_int(:,:,:)
+
+    ! For time calculation
+    INTEGER :: yyyy, mm, dd, hh, mn, ss
+    INTEGER :: REFDATE(8), CURDATE(8), ierr
+    REAL(8) :: outjulday
+
+    ios = 0
+
+    yyyy = TOUT(1) / 10000
+    mm   = MOD(TOUT(1), 10000) / 100
+    dd   = MOD(TOUT(1), 100)
+    hh   = TOUT(2) / 10000
+    mn   = MOD(TOUT(2), 10000) / 100
+    ss   = MOD(TOUT(2), 100)
+
+    CURDATE = (/yyyy, mm, dd, hh, mn, ss, 0, 0/)
+    CALL U2D('days since 1990-01-01 00:00:00', REFDATE, ierr)
+    outjulday = TSUB(REFDATE, CURDATE)
+    time_val_arr(1) = outjulday
+
+    ! Construct filename
+    WRITE(filename,'(I8.8,".",I6.6,".restart.ww3.nc")') TOUT(1), TOUT(2)
+
+    ! Create NetCDF-4 file
+    status = nf90_create(TRIM(filename), IOR(NF90_CLOBBER, NF90_NETCDF4), ncid)
+    CALL check_err(status)
+
+    ! Define dimensions
+    status = nf90_def_dim(ncid, 'time', NF90_UNLIMITED, dim_time); CALL check_err(status)
+    status = nf90_def_dim(ncid, 'ny', NY, dim_ny); CALL check_err(status)
+    status = nf90_def_dim(ncid, 'nx', NX, dim_nx); CALL check_err(status)
+
+    dims_3d = (/dim_time, dim_ny, dim_nx/)
+
+    ! Define scalar metadata variables
+    status = nf90_def_var(ncid, 'nk', NF90_INT, var_nk); CALL check_err(status)
+    status = nf90_put_att(ncid, var_nk, 'long_name', 'number of frequencies'); CALL check_err(status)
+
+    status = nf90_def_var(ncid, 'nth', NF90_INT, var_nth); CALL check_err(status)
+    status = nf90_put_att(ncid, var_nth, 'long_name', 'number of direction bins'); CALL check_err(status)
+
+    !Define Time Variable
+    status = nf90_def_var(ncid, 'time', NF90_DOUBLE, (/dim_time/), var_time); CALL check_err(status)
+    SELECT CASE (TRIM(CALTYPE))
+      CASE ('360_day')
+        status = nf90_put_att(ncid, var_time, 'long_name', 'time in 360 day calendar'); CALL check_err(status)
+      CASE ('365_day')
+        status = nf90_put_att(ncid, var_time, 'long_name', 'time in 365 day calendar'); CALL check_err(status)
+      CASE DEFAULT
+        status = nf90_put_att(ncid, var_time, 'long_name', 'Julian day (UT)'); CALL check_err(status)
+    END SELECT
+    status = nf90_put_att(ncid, var_time, 'standard_name', 'time'); CALL check_err(status)
+    status = nf90_put_att(ncid, var_time, 'units', 'days since 1990-01-01 00:00:00'); CALL check_err(status)
+    status = nf90_put_att(ncid, var_time, 'calendar', TRIM(CALTYPE)); CALL check_err(status)
+    status = nf90_put_att(ncid, var_time, 'conventions', 'Relative Julian days with decimal part (as parts of the day)'); CALL check_err(status)
+    status = nf90_put_att(ncid, var_time, 'axis', 'T'); CALL check_err(status)
+
+    ! Define 3D variables
+    status = nf90_def_var(ncid, 'mapsta', NF90_INT, dims_3d, varid_mapsta); CALL check_err(status)
+    status = nf90_put_att(ncid, varid_mapsta, '_FillValue', fillval_i); CALL check_err(status)
+
+    status = nf90_def_var(ncid, 'ice', NF90_FLOAT, dims_3d, varid_ice); CALL check_err(status)
+    status = nf90_put_att(ncid, varid_ice, '_FillValue', fillval_r); CALL check_err(status)
+
+    ! Define spectral variables va0001 to va(NK*NTH)
+    DO nv = 1, NK * NTH
+      WRITE(vname, '(A,I4.4)') 'va', nv
+      status = nf90_def_var(ncid, TRIM(vname), NF90_FLOAT, dims_3d, varid); CALL check_err(status)
+      status = nf90_put_att(ncid, varid, '_FillValue', fillval_r); CALL check_err(status)
+    END DO
+
+    ! End define mode
+    status = nf90_enddef(ncid); CALL check_err(status)
+
+    ! Write scalar values
+    status = nf90_put_var(ncid, var_nk, NK); CALL check_err(status)
+    status = nf90_put_var(ncid, var_nth, NTH); CALL check_err(status)
+
+    ! Write time value
+    status = nf90_put_var(ncid, var_time, time_val_arr, start=(/1/)); CALL check_err(status)
+
+    ! Write MAPSTA
+    ALLOCATE(tmp3d_int(1, NY, NX))
+    tmp3d_int(1,:,:) = MAPSTA(:,:)
+    status = nf90_put_var(ncid, varid_mapsta, tmp3d_int, start=(/1,1,1/), count=(/1,NY,NX/)); CALL check_err(status)
+    DEALLOCATE(tmp3d_int)
+
+    ! Write ICE
+    ALLOCATE(tmp3d(1, NY, NX))
+    ip = 0
+    tmp3d = fillval_r
+    DO iy = 1, NY
+      DO ix = 1, NX
+        ip = (iy - 1) * NX + ix
+        IF (MAPSTA(iy, ix) == 1) tmp3d(1, iy, ix) = ICE_tmp(ip)
+      END DO
+    END DO
+    status = nf90_put_var(ncid, varid_ice, tmp3d, start=(/1,1,1/), count=(/1,NY,NX/)); CALL check_err(status)
+    DEALLOCATE(tmp3d)
+
+    ! Write VA fields
+    DO nv = 1, NK * NTH
+      WRITE(vname, '(A,I4.4)') 'va', nv
+      status = nf90_inq_varid(ncid, TRIM(vname), varid); CALL check_err(status)
+      ALLOCATE(tmp3d(1, NY, NX))
+      tmp3d = fillval_r
+      DO iy = 1, NY
+        DO ix = 1, NX
+          ip = (iy - 1) * NX + ix
+          IF (MAPSTA(iy, ix) == 1) tmp3d(1, iy, ix) = VA_tmp(nv, ip)
+        END DO
+      END DO
+      status = nf90_put_var(ncid, varid, tmp3d, start=(/1,1,1/), count=(/1,NY,NX/)); CALL check_err(status)
+      DEALLOCATE(tmp3d)
+    END DO
+
+    ! Close file
+    status = nf90_close(ncid); CALL check_err(status)
+
+  CONTAINS
+
+    SUBROUTINE check_err(status)
+      INTEGER, INTENT(IN) :: status
+      IF (status /= nf90_noerr) THEN
+        PRINT *, 'NetCDF Error: ', TRIM(nf90_strerror(status))
+        ios = status
+        STOP
+      END IF
+    END SUBROUTINE check_err
+
+  END SUBROUTINE W3IORSN_WRITE
+
   !/
   !/ End of module W3IORSMD -------------------------------------------- /
   !/
